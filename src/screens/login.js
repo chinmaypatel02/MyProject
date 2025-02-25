@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -8,7 +8,11 @@ import {
     Image,
     SafeAreaView,
     Dimensions,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { handleLogin } from '../redux/actions/authActions';
 import images from '../utils/images';
 
 const { width, height } = Dimensions.get('window');
@@ -17,15 +21,38 @@ const LoginScreen = ({ navigation }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    
+    // Get auth state from Redux
+    const dispatch = useDispatch();
+    const { error, isAuthenticated } = useSelector(state => state.auth);
+
+    // Navigate to Home screen if already authenticated
+    useEffect(() => {
+        if (isAuthenticated) {
+            navigation.navigate('Home');
+        }
+    }, [isAuthenticated, navigation]);
 
     // Handle sign in button press
-    const handleSignIn = () => {
-        // Add your authentication logic here
-        console.log('Sign in with:', email, password);
+    const onSignIn = async () => {
+        // Validate inputs
+        if (!email || !password) {
+            Alert.alert('Error', 'Please enter both email and password');
+            return;
+        }
+
+        setIsLoading(true);
+
+        // Use the handleLogin function
+        const result = await handleLogin(email, password, dispatch);
         
-        // Navigate to Home screen after authentication
-        navigation.navigate('Home');
-      };
+        setIsLoading(false);
+        
+        if (!result.success) {
+            Alert.alert('Login Failed', result.error);
+        }
+    };
 
     // Handle social sign in
     const handleSocialSignIn = (provider) => {
@@ -37,6 +64,7 @@ const LoginScreen = ({ navigation }) => {
     const handleGuestSignIn = () => {
         console.log('Signing in as guest');
         // Navigation to main app as guest
+        navigation.navigate('Home');
     };
 
     return (
@@ -56,6 +84,13 @@ const LoginScreen = ({ navigation }) => {
 
             {/* Login Form */}
             <View style={styles.formContainer}>
+                {/* Error Message */}
+                {error && (
+                    <View style={styles.errorContainer}>
+                        <Text style={styles.errorText}>{error}</Text>
+                    </View>
+                )}
+
                 {/* Email Input */}
                 <Text style={styles.inputLabel}>Email</Text>
                 <TextInput
@@ -92,8 +127,16 @@ const LoginScreen = ({ navigation }) => {
 
                 {/* Sign In Button */}
                 <View style={styles.signInButtonContainer}>
-                    <TouchableOpacity style={styles.signInButton} onPress={handleSignIn}>
-                        <Text style={styles.signInButtonText}>Sign In</Text>
+                    <TouchableOpacity 
+                        style={styles.signInButton} 
+                        onPress={onSignIn}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                            <Text style={styles.signInButtonText}>Sign In</Text>
+                        )}
                     </TouchableOpacity>
                 </View>
 
@@ -176,6 +219,16 @@ const styles = StyleSheet.create({
     formContainer: {
         width: width * 0.9,
     },
+    errorContainer: {
+        backgroundColor: '#ffebee',
+        padding: height * 0.015,
+        borderRadius: width * 0.01,
+        marginBottom: height * 0.02,
+    },
+    errorText: {
+        color: '#c62828',
+        fontSize: width * 0.035,
+    },
     inputLabel: {
         fontSize: width * 0.04,
         marginBottom: height * 0.005,
@@ -218,14 +271,14 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
         width: '100%',
         marginVertical: height * 0.02,
-      },
-      signInButton: {
+    },
+    signInButton: {
         backgroundColor: '#2ecc71',
         borderRadius: width * 0.01,
         padding: height * 0.018,
         alignItems: 'center',
         width: width * 0.3, // Smaller width as per Figma design
-      },
+    },
     signInButtonText: {
         color: '#fff',
         fontSize: width * 0.04,
@@ -235,7 +288,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'flex-end',  // Changed from 'center' to 'flex-end'
         marginVertical: height * 0.01,
-      },
+    },
     signUpText: {
         color: '#000',
         fontSize: width * 0.035,
